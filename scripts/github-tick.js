@@ -1,0 +1,10 @@
+import {loadMarket} from '../lib/market.js';import {initialState,runTick,validateState,report} from '../lib/engine.js';
+const token=process.env.GITHUB_TOKEN,repo=process.env.GITHUB_REPOSITORY;
+if(!token||repo!=='git-jainamshah/northstar')throw new Error('Expected repository-scoped Actions token and northstar repository');
+const api=async(path,method='GET',body)=>{const r=await fetch(`https://api.github.com/repos/${repo}/${path}`,{method,headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(15000)});const data=await r.json();return {ok:r.ok,status:r.status,data}};
+const branch='northstar-state';let ref=await api(`git/ref/heads/${branch}`);
+if(ref.status===404){const main=await api('git/ref/heads/main');if(!main.ok)throw new Error('Cannot read main branch');ref=await api('git/refs','POST',{ref:`refs/heads/${branch}`,sha:main.data.object.sha});if(!ref.ok)throw new Error('Cannot create ledger branch')}else if(!ref.ok)throw new Error('Cannot read ledger branch');
+const path='.northstar/state.json',file=await api(`contents/${path}?ref=${branch}`);let state,sha;
+if(file.ok){if(file.data.encoding!=='base64')throw new Error('Invalid state encoding');state=validateState(JSON.parse(Buffer.from(file.data.content,'base64').toString('utf8')));sha=file.data.sha}else if(file.status===404){state=initialState()}else throw new Error('Cannot read ledger; refusing a silent reset');
+const market=await loadMarket();const next=runTick(state,market);const content=Buffer.from(JSON.stringify(next)).toString('base64');const write=await api(`contents/${path}`,'PUT',{message:`Paper ledger ${new Date().toISOString()} [skip ci]`,branch,content,...(sha?{sha}:{})});if(!write.ok)throw new Error('Ledger commit failed; no retry with a reset account');
+const r=report(next);console.log(JSON.stringify({mode:r.mode,status:r.heartbeat.status,equityCad:r.equity,trades:r.trades.length,decisions:r.decisions.slice(0,2)},null,2));if(r.heartbeat.status!=='ok')process.exitCode=1;

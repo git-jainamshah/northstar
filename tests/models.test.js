@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {projectGrowth,roundTrip,signals} from '../dist/models.js';
+const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
+test('zero return preserves initial plus contributions',()=>{const r=projectGrowth(250,50,10,0);near(r.balance,6250);near(r.contributions,6250)});
+test('effective annual rate compounds correctly',()=>near(projectGrowth(1000,0,2,10).balance,1210));
+test('negative return produces a loss without negative balances',()=>{const r=projectGrowth(1000,0,1,-50);near(r.balance,500)});
+test('invalid inputs rejected',()=>{for(const v of [NaN,Infinity,-1])assert.throws(()=>projectGrowth(v,50,10,4));assert.throws(()=>projectGrowth(100,20,0,5));assert.throws(()=>projectGrowth(100,20,2,-100))});
+test('two-way conversion and breakeven',()=>{const r=roundTrip(100,0,1.5);near(r.net,97.0225);near(r.cost,2.9775);near(roundTrip(100,r.breakEven,1.5).net,100)});
+test('total loss and zero fee scenarios',()=>{near(roundTrip(100,-100,1.5).net,0);near(roundTrip(100,5,0).net,105)});
+test('signal calculations handle flat series and drawdown',()=>{const r=signals(Array(21).fill(100));near(r.momentum,0);near(r.volatility,0);near(r.drawdown,0);const d=signals([...Array(20).fill(100),80]);near(d.drawdown,-20);near(d.momentum,-20)});
+test('bad or insufficient price data never returns a signal',()=>{assert.equal(signals([1,2]),null);assert.equal(signals([...Array(20).fill(100),NaN]),null);assert.equal(signals([...Array(20).fill(100),0]),null)});

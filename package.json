@@ -14,6 +14,8 @@
     "worker": "node scripts/worker.js",
     "ibkr": ".runtime/ibkr-venv/bin/python scripts/ibkr_worker.py",
     "test:ibkr": "python3 -m unittest discover -s tests -p \"ibkr_*_test.py\"",
-    "pilot": "node scripts/ibkr-pilot.js"
+    "pilot": "node scripts/ibkr-pilot.js",
+    "relay": "node scripts/ibkr-relay.js",
+    "setup:relay": "node scripts/setup-ibkr-relay.js"
   }
 }

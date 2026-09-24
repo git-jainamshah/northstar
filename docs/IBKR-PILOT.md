@@ -48,7 +48,7 @@ The worker atomically writes `.runtime/ibkr.json` with restricted file permissio
 
 ## Hosted Northstar
 
-The public `/api/ibkr` endpoint explicitly returns `local-pilot-only` and no quotes. It cannot reach this Mac's localhost gateway. Data is not uploaded to GitHub or Vercel. Hosting requires a persistent gateway/worker plus authenticated private access and verification of applicable data licensing before any redistribution.
+The hosted `/api/ibkr` endpoint now shows an explicit setup or locked state. It cannot reach this Mac's localhost gateway directly. An optional authenticated outbound relay can publish private snapshots once configured; see [IBKR-RELAY.md](IBKR-RELAY.md). Without that separate relay, no quotes are uploaded. Quotes are never written to GitHub.
 
 ## Validation
 

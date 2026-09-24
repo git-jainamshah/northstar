@@ -4,3 +4,5 @@
 @media(prefers-reduced-motion:no-preference){button,a{transition:background .16s,color .16s}.panel{animation:appear .2s ease-out}@keyframes appear{from{opacity:.7;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}}
 
 .prediction-stats{padding:0 24px}.prediction-stats .stat strong{font-size:23px}.prediction-stats .stat small{line-height:1.7}.prediction-stats+.table-scroll td small{max-width:310px;white-space:normal;line-height:1.7}
+
+#ibkr-access-key{background:#0a0e10;border:1px solid #30383f;border-radius:8px;color:#f0f3f5;padding:12px;min-width:0;flex:1}#ibkr-access-key:focus{outline:2px solid #65ebc5}#ibkr-auth-error{color:#ef8c8c}#ibkr-lock{margin-left:12px}

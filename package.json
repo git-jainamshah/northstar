@@ -1,1 +1,19 @@
-{"name":"northstar-investing","version":"0.2.0","private":true,"type":"module","engines":{"node":"24.x"},"scripts":{"test":"node --test tests/*.test.js","check":"node scripts/check.js","dev":"node scripts/dev-server.js","tick":"node scripts/tick.js","worker":"node scripts/worker.js"}}
+{
+  "name": "northstar-investing",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check.js",
+    "dev": "node scripts/dev-server.js",
+    "tick": "node scripts/tick.js",
+    "worker": "node scripts/worker.js",
+    "ibkr": ".runtime/ibkr-venv/bin/python scripts/ibkr_worker.py",
+    "test:ibkr": "python3 -m unittest discover -s tests -p \"ibkr_*_test.py\"",
+    "pilot": "node scripts/ibkr-pilot.js"
+  }
+}

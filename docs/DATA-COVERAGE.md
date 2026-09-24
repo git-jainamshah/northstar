@@ -30,3 +30,11 @@ Public crypto data enables a technical pilot; it does not make crypto appropriat
 ## Before interpreting results
 
 This system has no microsecond latency target. The hourly worker and candle model cannot measure high-frequency opportunities. Paper fills omit queue priority, market impact beyond assumed slippage, partial fills, and tax. They are an approximation, not evidence of actual broker execution. A few winning trades do not establish statistical confidence. The dashboard should display losses and idle periods without selecting only favourable examples.
+
+## Forward forecast scorecard
+
+Forecasts are recorded by the paper worker, before their one-hour outcomes. The experimental return estimate combines the existing uncalibrated direction score with average positive/negative returns from the last 120 hourly returns. The displayed low/high scenarios use the historical 5th/95th percentiles, not a calibrated confidence interval or bounds on loss. Projections use a hypothetical maximum-size CAD position with entry/exit fees, spread, and slippage; they are not orders or portfolio returns.
+
+A forward outcome needs a validated quote timestamp at or after its target, observed no later than two minutes after the target. Missed targets expire rather than scoring a later price. The hourly GitHub scheduler is not reliable enough to supply this window consistently; a persistent worker is needed for usable forward coverage. No historical predictions are fabricated for existing trades.
+
+Closed-trade win rate counts profitable exits divided by all closed trades, including break-even trades in the denominator. Predicted-versus-realized trade P/L only includes exits within two minutes of their stored entry forecast's one-hour target. Other holding periods are excluded. The shadow scenario aggregate is separate from actual executed-trade P/L. Metrics cover retained records: up to 4,000 forecasts and the engine's retained trade journal.

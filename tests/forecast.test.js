@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {makeForecast,updateForecasts,forecastReport} from '../lib/forecast.js';import {CONFIG} from '../lib/config.js';
+const now=1800000000000;
+const asset=()=>({id:'BTC/CAD',bid:99.9,ask:100.1,observedAt:now,precision:6,minQty:.0001,minCost:1,bars:Array.from({length:121},(_,i)=>({time:now-(121-i)*3600000,close:100+(i%2)}))});
+const model={version:'test',latest:{upwardScore:.5}};
+const state=()=>({models:{'BTC/CAD':model},config:CONFIG,trades:[]});
+test('forecast subtracts entry and exit costs and preserves frozen input',()=>{const a=asset(),f=makeForecast(a,model,CONFIG,now);assert.ok(f.expectedPnl<0);assert.ok(f.cost<=20);assert.equal(f.dueAt,now+3600000);assert.ok(f.lowPnl<f.highPnl);});
+test('forecast outcomes cannot be scored before the target',()=>{const s=state();updateForecasts(s,[asset()],now);updateForecasts(s,[{...asset(),observedAt:now+60000}],now+60000);assert.equal(s.forecasts[0].status,'pending');assert.equal(forecastReport(s).scored,0);});
+test('forward outcome uses actual bid and freezes the original prediction',()=>{const s=state();updateForecasts(s,[asset()],now);const original=s.forecasts[0].expectedPnl;updateForecasts(s,[{...asset(),bid:102,ask:102.1,observedAt:now+3600000}],now+3600000);const f=s.forecasts[0];assert.equal(f.status,'scored');assert.equal(f.expectedPnl,original);assert.equal(f.actualPnl,f.qty*102*(1-f.slip)*(1-f.fee)-f.cost);assert.equal(forecastReport(s).scored,1);});
+test('missing target expires rather than scoring hours-late prices',()=>{const s=state();updateForecasts(s,[asset()],now);updateForecasts(s,[{...asset(),observedAt:now+7200000}],now+7200000);assert.equal(s.forecasts[0].status,'expired');assert.equal(forecastReport(s).directionalAccuracy,null);});
+test('old quotes cannot score a forecast target',()=>{const s=state();updateForecasts(s,[asset()],now);updateForecasts(s,[asset()],now+3600000);assert.equal(s.forecasts[0].status,'pending');});
+test('win rate excludes open trades and counts break-even as non-winning',()=>{const s=state();s.trades=[{side:'BUY',pnl:null},{side:'SELL',pnl:2},{side:'SELL',pnl:-1},{side:'SELL',pnl:0}];const r=forecastReport(s);assert.equal(r.closedTrades,3);assert.equal(r.tradeWinRate,1/3);assert.equal(r.matchedTrades,0);assert.equal(r.predictedTradePnl,null);});
+test('P/L comparison requires entry forecasts and the same one-hour horizon',()=>{const s=state();s.trades=[{side:'SELL',pnl:2,time:now+3600000,entryForecast:{dueAt:now+3600000,expectedPnl:1}},{side:'SELL',pnl:8,time:now+7200000,entryForecast:{dueAt:now+3600000,expectedPnl:3}}];const r=forecastReport(s);assert.equal(r.matchedTrades,1);assert.equal(r.predictedTradePnl,1);assert.equal(r.realizedMatchedPnl,2);});
+test('old ledgers have no invented prediction history',()=>{const r=forecastReport(state());assert.equal(r.scored,0);assert.equal(r.tradeWinRate,null);assert.deepEqual(r.latest,[]);});

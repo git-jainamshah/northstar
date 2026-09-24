@@ -69,3 +69,7 @@ A candidate's future promotion would require longer licensed adjusted history, w
 The older `.openai/hosting.json` is a local record of the previous Sites deployment; it is excluded from the GitHub import. The old chatgpt.site remains the original static prototype until deliberately retired; the Vercel pilot is a separate deployment.
 
 See [data coverage](docs/DATA-COVERAGE.md) for what the free pilot cannot do.
+
+## IBKR local pilot
+
+A read-only gateway connector and private dashboard are now available. Start with `npm run pilot` after SDK setup. See [IBKR-PILOT.md](docs/IBKR-PILOT.md) for setup, feed entitlements, limitations and restart instructions. This does not enable derivatives execution or publish brokerage data to Vercel.

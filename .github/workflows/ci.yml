@@ -16,3 +16,4 @@ jobs:
           node-version: '24'
       - run: npm test
       - run: npm run check
+      - run: npm run test:ibkr

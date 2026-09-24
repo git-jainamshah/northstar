@@ -73,3 +73,7 @@ See [data coverage](docs/DATA-COVERAGE.md) for what the free pilot cannot do.
 ## IBKR local pilot
 
 A read-only gateway connector and private dashboard are now available. Start with `npm run pilot` after SDK setup. See [IBKR-PILOT.md](docs/IBKR-PILOT.md) for setup, feed entitlements, limitations and restart instructions. This does not enable derivatives execution or publish brokerage data to Vercel.
+
+## Private hosted IBKR relay
+
+The website now shows an explicit IBKR setup/locked state. Optional private Redis storage and separate upload/view keys connect the local pilot to the hosted dashboard. See [IBKR-RELAY.md](docs/IBKR-RELAY.md). The relay does not enable derivatives execution or remove provider data delays.

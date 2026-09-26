@@ -45,7 +45,7 @@ class Quote:
 
     def snapshot(self, connected, timestamp):
         fields = {}
-        for name in ('bid', 'ask', 'last', 'close'):
+        for name in ('bid', 'ask', 'last', 'close', 'bidSize', 'askSize'):
             entry = self.values.get(name, {})
             fields[name] = entry.get('value')
             fields[name + 'ReceivedAt'] = entry.get('receivedAt')

@@ -11,10 +11,10 @@ function response(){return {statusCode:200,headers:{},setHeader(k,v){this.header
 const req=(method,body,headers={})=>({method,body,headers:{'content-type':'application/json',origin:ORIGIN,...headers}});
 const cookie=()=>`${COOKIE}=${sessionValue(env,now)}`;
 test('unconfigured deployment has visible setup state without quotes',async()=>{
- const res=response();await readHandler({env:{}})(req('GET'),res);assert.equal(res.body.status,'setup-required');assert.deepEqual(res.body.assets,[]);assert.match(ibkrPanel(res.body),/SETUP REQUIRED/);
+ const res=response();await readHandler({env:{}})(req('GET'),res);assert.equal(res.body.status,'setup-required');assert.deepEqual(res.body.assets,[]);assert.match(ibkrPanel(res.body),/Cannot connect to market/);
 });
 test('unauthenticated reads do not access storage or leak quotes',async()=>{
- const res=response();await readHandler({env,store:()=>{throw new Error('must not be called')}})(req('GET'),res);assert.equal(res.body.status,'locked');assert.deepEqual(res.body.assets,[]);assert.match(res.headers['Cache-Control'],/no-store/);assert.match(ibkrPanel(res.body),/Private access key/);
+ const res=response();await readHandler({env,store:()=>{throw new Error('must not be called')}})(req('GET'),res);assert.equal(res.body.status,'locked');assert.deepEqual(res.body.assets,[]);assert.match(res.headers['Cache-Control'],/no-store/);assert.match(ibkrPanel(res.body),/Workspace key/);
 });
 test('writer token cannot read or unlock private quotes',async()=>{
  const res=response();await readHandler({env})(req('GET',undefined,{authorization:`Bearer ${env.NORTHSTAR_IBKR_INGEST_TOKEN}`}),res);assert.equal(res.body.status,'locked');

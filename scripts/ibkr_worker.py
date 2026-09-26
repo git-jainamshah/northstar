@@ -54,6 +54,7 @@ class Connector(EWrapper, EClient):
         self.requests = {}
         self.chains = []
         self.option_requested = False
+        self.option_day = None
         self.counter = 100
         self.events = []
         self.discovery = {}
@@ -132,6 +133,14 @@ class Connector(EWrapper, EClient):
 
     def maybe_option(self):
         with self.guard:
+            today = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
+            if today != self.option_day:
+                self.option_requested = False
+                self.option_day = today
+                for req_id, q in list(self.quotes.items()):
+                    if q.meta['category'] == 'Options' and q.meta['expiry'] < today:
+                        self.cancelMktData(req_id)
+                        del self.quotes[req_id]
             if self.option_requested or not self.chains:
                 return
             underlying = next((q for q in self.quotes.values() if q.meta['symbol'] == 'SPY'), None)
@@ -155,6 +164,8 @@ class Connector(EWrapper, EClient):
         with self.guard:
             if reqId in self.quotes:
                 self.quotes[reqId].set_mode(marketDataType)
+                if marketDataType == 1:
+                    self.quotes[reqId].error = None
 
     def tickPrice(self, reqId, tickType, price, attrib):
         fields = {1:'bid', 2:'ask', 4:'last', 9:'close', 66:'bid', 67:'ask', 68:'last', 75:'close'}
@@ -165,8 +176,16 @@ class Connector(EWrapper, EClient):
                     quote.set_mode(3)
                 quote.tick(fields[tickType], price)
 
+    def tickSize(self, reqId, tickType, size):
+        fields = {0: 'bidSize', 3: 'askSize', 69: 'bidSize', 70: 'askSize'}
+        with self.guard:
+            quote = self.quotes.get(reqId)
+            if quote and tickType in fields:
+                quote.tick(fields[tickType], float(size))
+
     def start_quotes(self):
         self.reqMarketDataType(3)
+        self.resolve(contract(symbol='USD', secType='CASH', exchange='IDEALPRO', currency='CAD'), 'FX', 'Canada')
         self.resolve(contract(symbol='RY', secType='STK', exchange='SMART', primaryExchange='TSE', currency='CAD'), 'Stocks', 'Canada')
         self.resolve(contract(symbol='SPY', secType='STK', exchange='SMART', currency='USD'), 'ETFs', 'US')
         self.resolve(contract(symbol='MES', secType='FUT', exchange='CME', currency='USD'), 'Futures', 'US')

@@ -19,7 +19,9 @@ async function status(state){
 while(!abort.signal.aborted){
   try{
     // All input must still be fresh. Never republish an old snapshot with a new timestamp.
-    const snapshot=sanitizeSnapshot(JSON.parse(await readFile(path('.runtime/ibkr.json'),'utf8')));
+    const source=JSON.parse(await readFile(path('.runtime/ibkr.json'),'utf8'));
+    try{source.research=JSON.parse(await readFile(path('.runtime/options-report.json'),'utf8'))}catch{}
+    const snapshot=sanitizeSnapshot(source);
     const response=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(10000)]),redirect:'error'});
     if(response.ok){await status('connected');backoff=30000;}
     else{await status(response.status===401?'access-key-rejected':response.status===503?'hosted-setup-or-storage-unavailable':`upload-rejected-${response.status}`);backoff=Math.min(backoff*2,300000)}

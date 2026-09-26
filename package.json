@@ -16,6 +16,7 @@
     "test:ibkr": "python3 -m unittest discover -s tests -p \"ibkr_*_test.py\"",
     "pilot": "node scripts/ibkr-pilot.js",
     "relay": "node scripts/ibkr-relay.js",
-    "setup:relay": "node scripts/setup-ibkr-relay.js"
+    "setup:relay": "node scripts/setup-ibkr-relay.js",
+    "options": "node scripts/options-worker.js"
   }
 }

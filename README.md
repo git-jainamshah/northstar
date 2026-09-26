@@ -77,3 +77,7 @@ A read-only gateway connector and private dashboard are now available. Start wit
 ## Private hosted IBKR relay
 
 The website now shows an explicit IBKR setup/locked state. Optional private Redis storage and separate upload/view keys connect the local pilot to the hosted dashboard. See [IBKR-RELAY.md](docs/IBKR-RELAY.md). The relay does not enable derivatives execution or remove provider data delays.
+
+### Options research
+
+The separate CAD $10,000 options simulation runs with `npm run pilot`, alongside the read-only IBKR connector and (when configured) private relay. Algorithm and Portfolio provide account selectors; Markets uses a compact watchlist/chart view. See [OPTIONS-RESEARCH.md](docs/OPTIONS-RESEARCH.md) for eligibility, accounting, prediction metrics and limitations. Live option quotes and USD/CAD conversion are required; connecting Gateway alone does not activate paid market-data entitlements.

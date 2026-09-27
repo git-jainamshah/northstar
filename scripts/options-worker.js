@@ -12,5 +12,5 @@ let stopped=false;for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>{stop
 async function save(name,value){await writeFile(path(name+'.tmp'),JSON.stringify(value),{mode:0o600});await rename(path(name+'.tmp'),path(name));}
 try{
  console.log('Options research worker: CAD $10,000 simulated capital; live orders disabled.');
- while(!stopped){stepOptions(state,await localIBKR(path('ibkr.json')));await save('options-state.json',state);await save('options-report.json',optionsReport(state));await pause(1000);}
+ while(!stopped){stepOptions(state,await localIBKR(path('ibkr.json')),Date.now(),{active:true});await save('options-state.json',state);await save('options-report.json',optionsReport(state));await pause(1000);}
 }finally{await unlink(lock)}

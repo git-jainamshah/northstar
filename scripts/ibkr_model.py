@@ -18,6 +18,7 @@ class Quote:
         self.values = {}
         self.history = []
         self.error = None
+        self.error_code = None
 
     def set_mode(self, mode):
         if mode != self.mode:
@@ -56,5 +57,5 @@ class Quote:
         status = 'disconnected' if not connected else 'unavailable' if not valid else 'stale' if not fresh else modes.get(self.mode, 'unknown')
         return dict(self.meta, **fields, mode=modes.get(self.mode, 'unknown'), status=status,
                     mid=(fields['bid'] + fields['ask']) / 2 if valid else None,
-                    receivedAt=book_at, history=self.history, error=self.error,
+                    receivedAt=book_at, history=self.history, error=self.error, errorCode=self.error_code,
                     eligibleForSimulation=fresh and self.mode == 1 and not self.error)

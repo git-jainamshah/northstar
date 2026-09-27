@@ -30,3 +30,14 @@ test('restart preserves position and pending intent; cooldown prevents immediate
 });
 test('risk pause prevents new entries; worker gap clears model samples',()=>{const s=initialOptions(start);s.halted=true;warm(s);assert.equal(s.pending,null);stepOptions(s,feed(start+180000,2.5),start+180000);assert.equal(s.plans[0].ready,false)});
 test('private relay allowlist strips actual account data and invalid numbers',()=>{const s=optionsReport(initialOptions(start));s.accountId='secret';s.position={account:'secret',symbol:'x',cost:NaN};const r=sanitizeResearch(s,start);assert.equal(r.accountId,undefined);assert.equal(r.position.account,undefined);assert.equal(r.position.cost,null);assert.equal(sanitizeResearch({...s,asOf:start+6000},start),null)});
+test('active research takes a bounded delayed exploration sample and realizes costs on exit',()=>{
+ const s=initialOptions(start);for(let i=0;i<=3;i++){const t=start+i*10000;stepOptions(s,feed(t,2,'delayed'),t,{active:true})}
+ assert.equal(s.pending.side,'BUY');assert.equal(s.trades.length,0);
+ const t=start+32000;stepOptions(s,feed(t,2,'delayed'),t,{active:true});assert.equal(s.position.mode,'delayed');assert.equal(s.exploration.count,1);assert.equal(s.trades[0].reason,'Exploration sample');
+ const due=s.position.dueAt;stepOptions(s,feed(due,2,'delayed'),due,{active:true});stepOptions(s,feed(due+2000,2,'delayed'),due+2000,{active:true});assert.equal(s.position,null);assert.ok(s.realizedPnl<0);assert.equal(s.trades[1].mode,'delayed');assert.equal(s.pending,null);
+});
+test('active research respects exploration cap, invalid quotes, mode changes and restart',()=>{
+ for(const change of [s=>s.exploration={day:'20260925',count:4,last:0},s=>s.halted=true]){const s=initialOptions(start);change(s);for(let i=0;i<10;i++){const t=start+i*10000;stepOptions(s,feed(t,2,'delayed'),t,{active:true})}assert.equal(s.trades.length,0);assert.equal(s.pending,null)}
+ for(const mode of ['frozen','delayed-frozen']){const s=initialOptions(start);for(let i=0;i<10;i++){const t=start+i*10000;stepOptions(s,feed(t,2,mode),t,{active:true})}assert.equal(s.pending,null)}
+ let s=initialOptions(start);for(let i=0;i<3;i++){const t=start+i*10000;stepOptions(s,feed(t,2,'delayed'),t,{active:true})}s=JSON.parse(JSON.stringify(s));stepOptions(s,feed(start+30000,2,'live'),start+30000,{active:true});assert.equal(s.plans[0].ready,false);assert.equal(s.samples[1].length,1);
+});

@@ -14,6 +14,7 @@ import time
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.contract import Contract
+from ibkr_explorer import ExplorerMixin
 from ibkr_model import Quote, now_ms, valid_price
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,7 +45,7 @@ def contract(**fields):
     return result
 
 
-class Connector(EWrapper, EClient):
+class Connector(ExplorerMixin, EWrapper, EClient):
     def __init__(self):
         EClient.__init__(self, self)
         self.guard = threading.RLock()
@@ -59,6 +60,7 @@ class Connector(EWrapper, EClient):
         self.events = []
         self.discovery = {}
         self.last_check = now_ms()
+        self.init_explorer()
 
     def next_id(self):
         self.counter += 1
@@ -75,6 +77,8 @@ class Connector(EWrapper, EClient):
         self.failed.set()
 
     def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=''):
+        if self.explorer_error(reqId, errorCode):
+            return
         # Never publish raw gateway errors: they may contain private account details.
         if errorCode in (2106, 2107, 2108, 2158):
             return
@@ -84,6 +88,7 @@ class Connector(EWrapper, EClient):
             self.events = self.events[-20:]
             if reqId in self.quotes and errorCode not in (2104,):
                 self.quotes[reqId].error = message
+                self.quotes[reqId].error_code = errorCode
             if reqId in self.requests:
                 self.discovery[self.requests[reqId]['category']] = message
         if errorCode in (1100, 1101, 1102, 326, 502, 504):
@@ -98,11 +103,13 @@ class Connector(EWrapper, EClient):
 
     def contractDetails(self, reqId, details):
         with self.guard:
+            if self.explorer_details(reqId, details): return
             if reqId in self.requests:
                 self.requests[reqId]['results'].append(details.contract)
 
     def contractDetailsEnd(self, reqId):
         with self.guard:
+            if self.explorer_details_end(reqId): return
             task = self.requests.pop(reqId, None)
             if not task:
                 return
@@ -127,6 +134,8 @@ class Connector(EWrapper, EClient):
                 self.reqSecDefOptParams(self.next_id(), 'SPY', '', 'STK', c.conId)
 
     def securityDefinitionOptionParameter(self, reqId, exchange, underlyingConId, tradingClass, multiplier, expirations, strikes):
+        with self.guard:
+            if self.explorer_chain(reqId, exchange, underlyingConId, tradingClass, multiplier, expirations, strikes): return
         if exchange == 'SMART' and tradingClass == 'SPY':
             with self.guard:
                 self.chains.append((multiplier, sorted(expirations), sorted(s for s in strikes if valid_price(s))))
@@ -156,21 +165,25 @@ class Connector(EWrapper, EClient):
             if not expiries or not strikes:
                 return
             self.option_requested = True
-            self.resolve(contract(symbol='SPY', secType='OPT', exchange='SMART', currency='USD',
-                lastTradeDateOrContractMonth=expiries[0], strike=min(strikes, key=lambda s: abs(s-ref)),
-                right='C', multiplier=multiplier, tradingClass='SPY'), 'Options', 'US')
+            for right in ('C', 'P'):
+                self.resolve(contract(symbol='SPY', secType='OPT', exchange='SMART', currency='USD',
+                    lastTradeDateOrContractMonth=expiries[0], strike=min(strikes, key=lambda s: abs(s-ref)),
+                    right=right, multiplier=multiplier, tradingClass='SPY'), 'Options', 'US')
 
     def marketDataType(self, reqId, marketDataType):
         with self.guard:
+            if self.explore_ids.get(reqId) == 'quote' and self.explore_quote:
+                self.explore_quote.set_mode(marketDataType)
             if reqId in self.quotes:
                 self.quotes[reqId].set_mode(marketDataType)
                 if marketDataType == 1:
                     self.quotes[reqId].error = None
+                    self.quotes[reqId].error_code = None
 
     def tickPrice(self, reqId, tickType, price, attrib):
         fields = {1:'bid', 2:'ask', 4:'last', 9:'close', 66:'bid', 67:'ask', 68:'last', 75:'close'}
         with self.guard:
-            quote = self.quotes.get(reqId)
+            quote = self.explore_quote if self.explore_ids.get(reqId) == 'quote' else self.quotes.get(reqId)
             if quote and tickType in fields:
                 if tickType in (66, 67, 68, 75) and quote.mode not in (3, 4):
                     quote.set_mode(3)
@@ -179,7 +192,7 @@ class Connector(EWrapper, EClient):
     def tickSize(self, reqId, tickType, size):
         fields = {0: 'bidSize', 3: 'askSize', 69: 'bidSize', 70: 'askSize'}
         with self.guard:
-            quote = self.quotes.get(reqId)
+            quote = self.explore_quote if self.explore_ids.get(reqId) == 'quote' else self.quotes.get(reqId)
             if quote and tickType in fields:
                 quote.tick(fields[tickType], float(size))
 
@@ -198,7 +211,7 @@ class Connector(EWrapper, EClient):
             return dict(schemaVersion=1, provider='IBKR TWS API', asOf=timestamp, connected=connected,
                 status=status if not connected else 'connected', port=port, readOnly=True,
                 execution='disabled', assets=[q.snapshot(connected, timestamp) for q in self.quotes.values()],
-                discovery=dict(self.discovery), events=list(self.events),
+                discovery=dict(self.discovery), events=list(self.events), explorer=self.explorer_snapshot(),
                 note='Private local pilot. Receipt timestamps are not exchange timestamps. No order execution.')
 
 
@@ -265,6 +278,7 @@ def main():
                         if now_ms()-client.last_check > 45000:
                             break
                         client.maybe_option()
+                        client.explorer_poll()
                         write_snapshot(path, client.snapshot(port, 'connected'))
                         stop.wait(1)
                 except Exception as exc:

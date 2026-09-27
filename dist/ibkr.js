@@ -1,9 +1,23 @@
 import {esc,stamp,chartHTML} from './charts.js';
 const price=(v,c)=>Number.isFinite(v)?new Intl.NumberFormat('en-CA',{style:'currency',currency:c||'USD',maximumFractionDigits:4}).format(v):'—';
 const badge=(text)=>`<span class="badge">${esc(text)}</span>`;
+export const FEED_HINTS={
+ 10197:'Another session (Client Portal, IBKR Mobile, or another TWS/Gateway login) is using this account. Close it, then reconnect.',
+ 354:'A live data subscription for this instrument was not detected yet.',
+ 10167:'Live data subscription missing for this instrument; showing delayed data instead.',
+ 10168:'No data entitlement for this instrument; delayed data is not available either.',
+ 10089:'This market data requires an additional IBKR subscription.',
+ 10090:'Part of this market data requires an additional IBKR subscription.',
+ 10091:'Part of this market data requires an additional IBKR subscription; some ticks may still arrive.',
+ 326:'Another Northstar connector is already using this API client ID.',
+ 502:'Cannot reach the IBKR gateway API. Check that Gateway is running and API access is enabled.',
+ 504:'The IBKR gateway API is not connected. Check the gateway login.',
+};
 export function ibkrPanel(feed){
- const connected=feed?.connected,delayed=feed?.assets?.some(a=>a.mode==='delayed'||a.mode==='delayed-frozen');
- return `<div class="connection-strip"><span><i class="connection-dot ${connected?'on':''}"></i>IB Gateway <b>${connected?'Connected to API':'Cannot connect to API'}</b>${connected&&delayed?'<span class="feed-delay">Delayed quotes</span>':''}</span></div>`;
+ const connected=feed?.connected,assets=feed?.assets||[];
+ const live=assets.filter(a=>a.mode==='live').length,delayed=assets.filter(a=>a.mode==='delayed'||a.mode==='delayed-frozen').length;
+ const hintCode=feed?.events?.slice().reverse().find(e=>FEED_HINTS[e.code])?.code;
+ return `<div class="connection-strip"><span><i class="connection-dot ${connected?'on':''}"></i>IB Gateway <b>${connected?'Connected to API':'Cannot connect to API'}</b>${connected&&(live||delayed)?`<span class="feed-counts">${live} live · ${delayed} delayed</span>`:''}${connected&&delayed?'<span class="feed-delay">Delayed quotes</span>':''}</span>${hintCode?`<span class="feed-hint">${esc(FEED_HINTS[hintCode])}</span>`:''}</div>`;
 }
 export function ibkrMarket(feed,category,region,selected){
   if(!feed?.enabled)return null;

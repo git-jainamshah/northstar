@@ -37,6 +37,9 @@ MESSAGES = {
     2104: 'Market data farm connected.',
 }
 
+# Entitlement/session codes worth surfacing on stdout for a human debugging delayed-vs-live data.
+ENTITLEMENT_CODES = {200, 354, 10167, 10168, 10089, 10090, 10091, 10197, 326, 502, 504}
+
 
 def contract(**fields):
     result = Contract()
@@ -91,6 +94,9 @@ class Connector(ExplorerMixin, EWrapper, EClient):
                 self.quotes[reqId].error_code = errorCode
             if reqId in self.requests:
                 self.discovery[self.requests[reqId]['category']] = message
+        if errorCode in ENTITLEMENT_CODES:
+            symbol = self.quotes[reqId].meta['symbol'] if reqId in self.quotes else 'gateway'
+            print(f'[IBKR {errorCode}] {symbol}: {message}', flush=True)
         if errorCode in (1100, 1101, 1102, 326, 502, 504):
             self.ready.clear()
             self.failed.set()
@@ -175,10 +181,14 @@ class Connector(ExplorerMixin, EWrapper, EClient):
             if self.explore_ids.get(reqId) == 'quote' and self.explore_quote:
                 self.explore_quote.set_mode(marketDataType)
             if reqId in self.quotes:
-                self.quotes[reqId].set_mode(marketDataType)
+                quote = self.quotes[reqId]
+                if marketDataType != quote.mode:
+                    label = {1: 'live', 2: 'frozen', 3: 'delayed', 4: 'delayed-frozen'}.get(marketDataType, 'unknown')
+                    print(f'[IBKR data] {quote.meta["symbol"]}: {label}', flush=True)
+                quote.set_mode(marketDataType)
                 if marketDataType == 1:
-                    self.quotes[reqId].error = None
-                    self.quotes[reqId].error_code = None
+                    quote.error = None
+                    quote.error_code = None
 
     def tickPrice(self, reqId, tickType, price, attrib):
         fields = {1:'bid', 2:'ask', 4:'last', 9:'close', 66:'bid', 67:'ask', 68:'last', 75:'close'}

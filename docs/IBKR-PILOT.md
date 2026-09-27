@@ -50,6 +50,26 @@ The worker atomically writes `.runtime/ibkr.json` with restricted file permissio
 
 The hosted `/api/ibkr` endpoint now shows an explicit setup or locked state. It cannot reach this Mac's localhost gateway directly. An optional authenticated outbound relay can publish private snapshots once configured; see [IBKR-RELAY.md](IBKR-RELAY.md). Without that separate relay, no quotes are uploaded. Quotes are never written to GitHub.
 
+## Troubleshooting delayed instead of live data
+
+`reqMarketDataType(3)` already means "live where entitled, delayed otherwise" — IBKR ignores the delayed request when live is available, so no code change is needed to prioritise a subscription. If quotes still show delayed after subscribing, the terminal running `npm run pilot` now prints the reason IBKR gave, per symbol:
+
+- `[IBKR data] SYMBOL: live|delayed|frozen|delayed-frozen` — every time a symbol's feed type changes.
+- `[IBKR <code>] SYMBOL: <reason>` — whenever IBKR reports an entitlement or session code for that symbol.
+
+Common codes and what they mean:
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| 10197 | Another session (Client Portal, IBKR Mobile, or a second TWS/Gateway login) is holding the live feed for this account. | Close Client Portal and the mobile app, then restart Gateway. Only one session can hold live entitlements at a time. |
+| 354 / 10167 | Live subscription missing or not yet propagated to the API. | Confirm the subscription covers this exact exchange, then wait one trading session — IBKR entitlements can take time to reach the API layer after purchase. |
+| 10168 | No entitlement at all; delayed data is also unavailable for this instrument. | Check the subscription actually covers this instrument/exchange. |
+| 10089 / 10090 / 10091 | An additional market-data add-on is required for part or all of this request. | Review the specific add-on (e.g. streaming, snapshot bundle) against what was purchased. |
+| 326 | Another Northstar connector is already using this API client ID. | Stop the other process; only one connector should run at a time. |
+| 502 / 504 | Cannot reach, or not connected to, the Gateway API port. | Check Gateway is running, logged in, and API access is enabled in its settings. |
+
+The Markets page's connection strip surfaces the same information in plain language: a live/delayed count per feed, and a one-line hint keyed off the most recent code above (see `FEED_HINTS` in `dist/ibkr.js`).
+
 ## Validation
 
 `npm test`, `npm run check`, and `npm run test:ibkr` verify quote freshness, feed-type handling, malformed/crossed prices, gaps, bounded history, UI currency/escaping and isolation of the public endpoint. For a bounded live check: `npm run ibkr -- --seconds 30` (stop any existing worker first).

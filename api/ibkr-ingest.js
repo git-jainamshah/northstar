@@ -1,3 +1,4 @@
+import {REQUEST_KEY} from '../lib/explorer.js';
 import {privateHeaders,configured,equal,jsonBody,sanitizeSnapshot,redis,KEY,STORE_SCRIPT} from '../lib/ibkr-relay.js';
 export function createHandler({env=process.env,store=redis,clock=Date.now}={}){
  return async function handler(req,res){
@@ -5,7 +6,7 @@ export function createHandler({env=process.env,store=redis,clock=Date.now}={}){
   if(!configured(env))return res.status(503).json({error:'Private relay setup is incomplete'});
   const header=req.headers.authorization||'';if(!header.startsWith('Bearer ')||!equal(header.slice(7),env.NORTHSTAR_IBKR_INGEST_TOKEN))return res.status(401).json({error:'Unauthorized'});
   let snapshot;try{snapshot=sanitizeSnapshot(await jsonBody(req),clock())}catch{return res.status(400).json({error:'Invalid, oversized or expired quote snapshot'})}
-  try{const written=await store(['EVAL',STORE_SCRIPT,1,KEY,snapshot.asOf,JSON.stringify(snapshot)],env);return res.json({ok:true,accepted:written===1,asOf:snapshot.asOf})}
+  try{const written=await store(['EVAL',STORE_SCRIPT,1,KEY,snapshot.asOf,JSON.stringify(snapshot)],env);let request=null;try{const pending=await store(['GET',REQUEST_KEY],env);if(pending)request=JSON.parse(pending)}catch{}return res.json({ok:true,accepted:written===1,asOf:snapshot.asOf,request})}
   catch{return res.status(503).json({error:'Private relay storage is unavailable'})}
  };
 }

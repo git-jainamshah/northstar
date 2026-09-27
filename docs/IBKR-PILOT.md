@@ -1,6 +1,6 @@
 # IBKR local data pilot
 
-This connector reads market data using the official IBKR TWS Python SDK and a logged-in IB Gateway/TWS. It never requests account balances, positions, or credentials and contains no order placement calls. The existing crypto strategy and saved portfolio are unchanged. Receiving derivatives data does not enable a derivatives trading strategy.
+This connector reads market data using the official IBKR TWS Python SDK and a logged-in IB Gateway/TWS. It never requests account balances, positions, or credentials and contains no order placement calls. The existing crypto strategy and saved portfolio are unchanged. The separate options research simulator uses eligible quotes; see OPTIONS-RESEARCH.md. No broker execution is enabled.
 
 ## Start / stop
 
@@ -32,7 +32,7 @@ Use IB Gateway API settings to permit local socket clients and keep Read-Only AP
 - Canadian stock: RY, CAD, SMART with TSE primary exchange.
 - U.S. ETF: SPY, USD, SMART.
 - Futures: earliest unexpired MES contract returned by IBKR, CME, USD.
-- Option: a SPY call selected from the actual chain using the nearest strike to an actual underlying last/close/ask, with the next available expiry at least tomorrow (UTC). IBKR must confirm the exact contract. This is a connectivity probe, not a recommendation or strategy selection.
+- Option: a SPY call and put selected from the actual chain using the nearest strike to an actual underlying last/close/ask, with the next available expiry at least tomorrow (UTC). IBKR must confirm the exact contract. This is a connectivity probe, not a recommendation or strategy selection.
 
 This is not all-market coverage. Contract expiry selection refreshes on connector restart/reconnect; restart before the next session when testing expiring instruments. The chain may return no qualifying contract or underlying price, in which case the UI remains unavailable.
 
@@ -40,7 +40,7 @@ This is not all-market coverage. Contract expiry selection refreshes on connecto
 
 The connector requests market-data type 3: live data is returned when entitled; otherwise IBKR may return delayed data. The UI uses IBKR's data-type callbacks and delayed tick codes to distinguish live, frozen, delayed, delayed-frozen and unknown. Missing bids/asks remain missing; last reported trades are shown separately and may be from an earlier session.
 
-`receivedAt` is local receipt time, not exchange event time. Quotes older than 120 seconds on either side, invalid/crossed quotes, unknown modes, errors and disconnected feeds cannot qualify as live simulation inputs. Even eligible quotes are not wired into the execution engine in this release.
+`receivedAt` is local receipt time, not exchange event time. Quotes older than 120 seconds on either side, invalid/crossed quotes, unknown modes, errors and disconnected feeds cannot qualify as live simulation inputs. The separate options simulator applies its own stricter execution checks and allows explicitly delayed research; see OPTIONS-RESEARCH.md.
 
 Heartbeat checks run every 15 seconds; lack of a response for 45 seconds triggers reconnect. Reconnection uses bounded 2–60 second backoff, exact contract discovery and resubscription. Authentication, gateway approval and entitlement failures still require user action. Restarting resets the bounded 1,800-point per-instrument observation chart; no historical bars are fabricated. Gaps in usable quotes are represented as chart gaps.
 

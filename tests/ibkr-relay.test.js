@@ -59,7 +59,7 @@ test('expired, future, out-of-order histories and oversized uploads are rejected
  const res=response();await ingestHandler({env,clock:()=>now})(req('POST',{padding:'x'.repeat(140000)},{authorization:`Bearer ${env.NORTHSTAR_IBKR_INGEST_TOKEN}`}),res);assert.equal(res.statusCode,400);
 });
 test('ingest uses one atomic conditional write and reports duplicate snapshots',async()=>{
- for(const result of [0,1]){let command;const res=response();await ingestHandler({env,clock:()=>now,store:async c=>{command=c;return result}})(req('POST',snapshot(),{authorization:`Bearer ${env.NORTHSTAR_IBKR_INGEST_TOKEN}`}),res);assert.equal(command[0],'EVAL');assert.match(command[1],/prev.asOf >=/);assert.equal(res.body.accepted,result===1)}
+ for(const result of [0,1]){const commands=[];const res=response();await ingestHandler({env,clock:()=>now,store:async c=>{commands.push(c);return c[0]==='EVAL'?result:null}})(req('POST',snapshot(),{authorization:`Bearer ${env.NORTHSTAR_IBKR_INGEST_TOKEN}`}),res);assert.equal(commands[0][0],'EVAL');assert.equal(commands[1][0],'GET');assert.match(commands[0][1],/prev.asOf >=/);assert.equal(res.body.accepted,result===1)}
 });
 test('weak or shared writer/view keys leave deployment unconfigured',()=>{
  assert.equal(configured({...env,NORTHSTAR_IBKR_VIEW_TOKEN:'short'}),false);assert.equal(configured({...env,NORTHSTAR_IBKR_VIEW_TOKEN:env.NORTHSTAR_IBKR_INGEST_TOKEN}),false);

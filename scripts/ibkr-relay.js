@@ -1,3 +1,4 @@
+import {marketRequest} from '../lib/explorer.js';
 import {readFile,writeFile,rename} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {loadEnvFile} from 'node:process';
@@ -10,7 +11,7 @@ if(!target||!token||token.length<32){console.error('Relay not configured. Run np
 const url=new URL(target);
 if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/api/ibkr-ingest'){console.error('Relay URL must be an HTTPS /api/ibkr-ingest endpoint without credentials or query parameters.');process.exit(1)}
 const abort=new AbortController();for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>abort.abort());
-let backoff=30000,lastStatus='';
+let backoff=30000,lastStatus='',lastRequest='';
 async function status(state){
   if(state!==lastStatus)console.log(`IBKR relay: ${state}`);lastStatus=state;
   const tmp=path('.runtime/ibkr-relay-status.tmp');
@@ -23,7 +24,7 @@ while(!abort.signal.aborted){
     try{source.research=JSON.parse(await readFile(path('.runtime/options-report.json'),'utf8'))}catch{}
     const snapshot=sanitizeSnapshot(source);
     const response=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(10000)]),redirect:'error'});
-    if(response.ok){await status('connected');backoff=30000;}
+    if(response.ok){const result=await response.json();if(result.request&&result.request.id!==lastRequest&&Date.now()-result.request.createdAt>=0&&Date.now()-result.request.createdAt<180000){lastRequest=result.request.id;let local=null;try{local=JSON.parse(await readFile(path('.runtime/explore-request.json'),'utf8'))}catch{};if(!local||local.createdAt<result.request.createdAt){const request=marketRequest(result.request,result.request.createdAt);const tmp=path('.runtime/explore-request.relay.tmp');await writeFile(tmp,JSON.stringify(request),{mode:0o600});await rename(tmp,path('.runtime/explore-request.json'));}}await status('connected');backoff=30000;}
     else{await status(response.status===401?'access-key-rejected':response.status===503?'hosted-setup-or-storage-unavailable':`upload-rejected-${response.status}`);backoff=Math.min(backoff*2,300000)}
   }catch{if(!abort.signal.aborted){await status('worker-stale-or-network-unavailable');backoff=Math.min(backoff*2,300000)}}
   try{await pause(backoff,undefined,{signal:abort.signal})}catch{}

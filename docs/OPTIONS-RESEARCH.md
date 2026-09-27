@@ -8,7 +8,7 @@ Run `npm run pilot` from the project. It starts Gateway quote collection, the op
 
 `npm run options` starts only the simulator for troubleshooting. Its lock prevents concurrent writers. `.runtime/options-state.json` is the durable ledger; `.runtime/options-report.json` is its private display projection. Neither file is committed. A malformed ledger stops the worker rather than resetting its capital.
 
-Production receives allowlisted quote and fictional research fields every 30 seconds. Local evaluation runs every second; this is not a subsecond execution service. Hosted quotes stay private using the existing eight-hour browser cookie. Connection controls are under Connection settings / Connect workspace. Keys remain server-side except the existing manual private-view login; no credentials are embedded in website assets.
+Production receives allowlisted quote and fictional research fields every 30 seconds. Local evaluation runs every second; this is not a subsecond execution service. Hosted quotes stay private using the existing automatically renewed 30-day browser cookie. Connection controls are under Connection settings / Connect workspace. Keys remain server-side except the existing manual private-view login; no credentials are embedded in website assets.
 
 ## Data requirements
 

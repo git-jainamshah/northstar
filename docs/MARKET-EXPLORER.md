@@ -9,3 +9,11 @@ The production browser POSTs an allowlisted read-only command to /api/explore us
 The local pilot uses the same commands through its loopback-only server and polls results every two seconds. The relay cannot execute orders, run arbitrary code or request arbitrary URLs. Existing writer/viewer keys do not change. Keep the Mac and Gateway running. Historical permissions are distinct from delayed quote availability: denied requests show the IBKR error code. Option expiry/strike combinations are verified as exact contracts when selected; not every combination exists. Standard option chains appear before adjusted chains.
 
 Validation: 70 Node tests and 10 Python tests. Real Gateway checks on September 27 returned AAPL stock candles (156 five-minute bars), MES December 2026 futures candles (180), SPY option chains, and SPY September 28 772 call candles (162). These are historical data checks, not observed paper executions or proof of live entitlements. An adjusted SPY option returned code 162 and was correctly shown as unavailable.
+
+## Default board and background updates
+
+Markets always shows a curated starter board: RY, SHOP, AAPL, MSFT; XIU, SPY, QQQ; MES, MNQ, CL; and the pilot SPY call/put. These are observation examples, not recommendations or a ranking. IBKR resolves the exact contracts and the connector subscribes independently of the page selection. Missing quotes stay visible as unavailable. The browser only requests historical bars when an instrument is selected.
+
+Rendering patches existing DOM nodes instead of replacing the page on each poll. Focused forms and hovered/keyboard-inspected charts are preserved during background changes. Polling continues independently of typing, and automatic refresh does not introduce loading spinners or entrance animations.
+
+Pairing uses a Secure, HttpOnly, SameSite=Strict cookie for 30 days, renewed during authenticated visits. Existing valid short sessions upgrade automatically. New browsers, cleared cookies or 30 days of inactivity require one-time pairing. The private viewer key never enters public frontend assets or localStorage; unauthenticated requests still receive no feed.

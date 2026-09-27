@@ -202,6 +202,12 @@ class Connector(ExplorerMixin, EWrapper, EClient):
         self.resolve(contract(symbol='RY', secType='STK', exchange='SMART', primaryExchange='TSE', currency='CAD'), 'Stocks', 'Canada')
         self.resolve(contract(symbol='SPY', secType='STK', exchange='SMART', currency='USD'), 'ETFs', 'US')
         self.resolve(contract(symbol='MES', secType='FUT', exchange='CME', currency='USD'), 'Futures', 'US')
+        for symbol, exchange, currency in [('SHOP','TSE','CAD'),('AAPL','NASDAQ','USD'),('MSFT','NASDAQ','USD')]:
+            self.resolve(contract(symbol=symbol, secType='STK', exchange='SMART', primaryExchange=exchange, currency=currency), 'Stocks', 'Canada' if currency=='CAD' else 'US')
+        for symbol, exchange, currency in [('QQQ','NASDAQ','USD'),('XIU','TSE','CAD')]:
+            self.resolve(contract(symbol=symbol, secType='STK', exchange='SMART', primaryExchange=exchange, currency=currency), 'ETFs', 'Canada' if currency=='CAD' else 'US')
+        for symbol, exchange in [('MNQ','CME'),('CL','NYMEX')]:
+            self.resolve(contract(symbol=symbol, secType='FUT', exchange=exchange, currency='USD'), 'Futures', 'US')
         self.discovery['Options'] = 'Waiting for the SPY chain and underlying price.'
 
     def snapshot(self, port, status):

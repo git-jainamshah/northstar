@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {createHmac} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {COOKIE,ORIGIN,authenticated,sessionValue,sanitizeSnapshot,hostedSnapshot,configured} from '../lib/ibkr-relay.js';
 import {createHandler as readHandler} from '../api/ibkr.js';
@@ -11,10 +12,10 @@ function response(){return {statusCode:200,headers:{},setHeader(k,v){this.header
 const req=(method,body,headers={})=>({method,body,headers:{'content-type':'application/json',origin:ORIGIN,...headers}});
 const cookie=()=>`${COOKIE}=${sessionValue(env,now)}`;
 test('unconfigured deployment has visible setup state without quotes',async()=>{
- const res=response();await readHandler({env:{}})(req('GET'),res);assert.equal(res.body.status,'setup-required');assert.deepEqual(res.body.assets,[]);assert.match(ibkrPanel(res.body),/Cannot connect to market/);
+ const res=response();await readHandler({env:{}})(req('GET'),res);assert.equal(res.body.status,'setup-required');assert.deepEqual(res.body.assets,[]);assert.match(ibkrPanel(res.body),/Cannot connect to API/);
 });
 test('unauthenticated reads do not access storage or leak quotes',async()=>{
- const res=response();await readHandler({env,store:()=>{throw new Error('must not be called')}})(req('GET'),res);assert.equal(res.body.status,'locked');assert.deepEqual(res.body.assets,[]);assert.match(res.headers['Cache-Control'],/no-store/);assert.match(ibkrPanel(res.body),/Workspace key/);
+ const res=response();await readHandler({env,store:()=>{throw new Error('must not be called')}})(req('GET'),res);assert.equal(res.body.status,'locked');assert.deepEqual(res.body.assets,[]);assert.match(res.headers['Cache-Control'],/no-store/);assert.match(ibkrPanel(res.body),/One-time pairing key/);
 });
 test('writer token cannot read or unlock private quotes',async()=>{
  const res=response();await readHandler({env})(req('GET',undefined,{authorization:`Bearer ${env.NORTHSTAR_IBKR_INGEST_TOKEN}`}),res);assert.equal(res.body.status,'locked');
@@ -27,7 +28,7 @@ test('session is secure, expires, and rotation revokes it',async()=>{
  const res=response();await sessionHandler({env,clock:()=>now})(req('POST',{token:env.NORTHSTAR_IBKR_VIEW_TOKEN}),res);
  assert.equal(res.statusCode,200);assert.match(res.headers['Set-Cookie'],/HttpOnly; Secure; SameSite=Strict/);
  assert.equal(authenticated(req('GET',undefined,{cookie:cookie()}),env,now),true);
- assert.equal(authenticated(req('GET',undefined,{cookie:cookie()}),env,now+8*3600000),false);
+ assert.equal(authenticated(req('GET',undefined,{cookie:cookie()}),env,now+30*24*3600000),false);
  assert.equal(authenticated(req('GET',undefined,{cookie:cookie()}),{...env,NORTHSTAR_IBKR_VIEW_TOKEN:'x'.repeat(64)},now),false);
  assert.equal(authenticated(req('GET',undefined,{cookie:cookie()+'a'}),env,now),false);
 });
@@ -63,4 +64,12 @@ test('ingest uses one atomic conditional write and reports duplicate snapshots',
 });
 test('weak or shared writer/view keys leave deployment unconfigured',()=>{
  assert.equal(configured({...env,NORTHSTAR_IBKR_VIEW_TOKEN:'short'}),false);assert.equal(configured({...env,NORTHSTAR_IBKR_VIEW_TOKEN:env.NORTHSTAR_IBKR_INGEST_TOKEN}),false);
+});
+
+test('existing short sessions upgrade automatically and renewed pairing remains private',async()=>{
+ const body=`v1.${Math.floor(now/1000)+3600}`,old=`${body}.${createHmac('sha256',env.NORTHSTAR_IBKR_VIEW_TOKEN).update(body).digest('hex')}`;
+ const res=response();await readHandler({env,clock:()=>now,store:async()=>null})(req('GET',undefined,{cookie:`${COOKIE}=${old}`}),res);
+ assert.equal(res.body.authenticated,true);assert.match(res.headers['Set-Cookie'],/Max-Age=2592000/);
+ const renewed=res.headers['Set-Cookie'].split(';')[0];assert.equal(authenticated(req('GET',undefined,{cookie:renewed}),env,now+29*24*3600000),true);
+ assert.equal(authenticated(req('GET',undefined,{cookie:renewed}),env,now+31*24*3600000),false);
 });

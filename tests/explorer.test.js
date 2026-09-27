@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {marketRequest,sanitizeExplorer} from '../lib/explorer.js';
 import {candleHTML} from '../dist/candles.js';
 import {createHandler} from '../api/explore.js';
-import {COOKIE,ORIGIN,sessionValue} from '../lib/ibkr-relay.js';
+import {COOKIE,ORIGIN,sessionValue,authenticated} from '../lib/ibkr-relay.js';
 const now=Date.now(),env={NORTHSTAR_IBKR_INGEST_TOKEN:'i'.repeat(64),NORTHSTAR_IBKR_VIEW_TOKEN:'v'.repeat(64),UPSTASH_REDIS_REST_URL:'https://test.upstash.io',UPSTASH_REDIS_REST_TOKEN:'test'};
 const command={id:'test-request-1',action:'search',query:'AAPL'};
 function response(){return {statusCode:200,setHeader(){},status(n){this.statusCode=n;return this},json(v){this.body=v;return this}}}
@@ -17,7 +17,7 @@ test('discovery accepts only bounded read-only commands and strips arbitrary bro
 });
 test('market queue requires viewer session and same origin, then enforces rate limit',async()=>{
  for(const [headers,expected,storeValue] of [[{},401,1],[{cookie:`${COOKIE}=${sessionValue(env,now)}`,origin:'https://evil.test'},403,1],[{cookie:`${COOKIE}=${sessionValue(env,now)}`,origin:ORIGIN},202,1],[{cookie:`${COOKIE}=${sessionValue(env,now)}`,origin:ORIGIN},429,0]]){
-  let calls=0;const res=response();await createHandler({env,clock:()=>now,store:async()=>{calls++;return storeValue}})({method:'POST',headers:{'content-type':'application/json',...headers},body:command},res);assert.equal(res.statusCode,expected);assert.equal(calls,expected===401||expected===403?0:1);
+  let calls=0;const res=response();await createHandler({env,clock:()=>now,authorizeUser:async r=>authenticated(r,env,now)?{email:'test'}:null,store:async()=>{calls++;return storeValue}})({method:'POST',headers:{'content-type':'application/json',...headers},body:command},res);assert.equal(res.statusCode,expected);assert.equal(calls,expected===401||expected===403?0:1);
  }
 });
 test('relay accepts valid OHLC only and strips private metadata',()=>{

@@ -1,0 +1,22 @@
+import {esc} from './charts.js';
+let account=null,checking=true,mode='login',error='',busy=false,recovery='';
+export const signedIn=()=>account?.authenticated===true;
+export function signOutButton(){return signedIn()&&!account.local?'<button class="button" id="sign-out">Sign out</button>':''}
+export function authView(){
+ if(checking)return '<section class="auth-card panel"><span class="eyebrow">NORTHSTAR</span><h1>Connecting…</h1></section>';
+ if(recovery)return `<section class="auth-card panel"><h1>Password updated</h1><p>Save your new recovery code somewhere private. It replaces the previous code and will only be shown here once.</p><pre class="recovery-code">${esc(recovery)}</pre><button id="save-recovery" class="button">Download recovery code</button><button id="back-login" class="button">Continue to sign in</button></section>`;
+ const reset=mode==='reset';
+ return `<section class="auth-card panel"><span class="eyebrow">YOUR PRIVATE TRADING WORKSPACE</span><h1>${reset?'Reset password':'Welcome back'}</h1><p>${reset?'Use your saved recovery code to choose a new password. Resetting signs out all devices.':'Sign in to your Northstar account. Your market connection is handled automatically.'}</p><form id="auth-form"><label>Email<input name="email" type="email" autocomplete="username" required maxlength="254"></label>${reset?'<label>Recovery code<input name="recoveryCode" type="password" autocomplete="off" required maxlength="128"></label>':''}<label>${reset?'New password':'Password'}<input name="password" type="password" autocomplete="${reset?'new-password':'current-password'}" ${reset?'minlength="12"':''} required maxlength="256"></label><p class="error" role="status">${esc(error)}</p><button class="button auth-submit" ${busy?'disabled':''}>${busy?'Please wait…':reset?'Reset password':'Sign in'}</button></form><button class="text-button" id="auth-mode">${reset?'Back to sign in':'Forgot password?'}</button>${reset?'<small>Recovery uses your private recovery code, not an email link.</small>':''}</section>`;
+}
+export async function checkAuth(render){try{const r=await fetch('/api/auth',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error();account=await r.json()}catch{error='Cannot reach the sign-in service. Please try again.';account=null}checking=false;render()}
+export function lostSession(render){account=null;checking=false;error='Please sign in to continue.';render()}
+export function bindAuth(root,render,onLogin,onLogout){
+ const signout=document.querySelector('#sign-out');if(signout)signout.onclick=async()=>{signout.disabled=true;try{const r=await fetch('/api/auth',{method:'DELETE',signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error();account=null;error='';onLogout();render()}catch{signout.disabled=false;signout.textContent='Retry sign out'}};
+ const form=root.querySelector('#auth-form');if(form)form.onsubmit=async e=>{e.preventDefault();if(busy)return;const values=new FormData(form);busy=true;const button=form.querySelector('button');button.disabled=true;button.textContent='Please wait…';
+  try{const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:mode==='reset'?'reset':'login',email:values.get('email'),password:values.get('password'),recoveryCode:values.get('recoveryCode')}),signal:AbortSignal.timeout(20000)});const data=await r.json();if(!r.ok)throw Error(data.error||'Sign-in failed.');error='';if(mode==='reset'){recovery=data.recoveryCode;account=null;form.reset();render()}else{account=data;form.reset();render();onLogin()}}
+  catch(e){error=e.message;const notice=form.querySelector('[role=status]');if(notice)notice.textContent=error;form.querySelector('[name=password]').value=''}finally{busy=false;button.disabled=false;button.textContent=mode==='reset'?'Reset password':'Sign in'}
+ };
+ const toggle=root.querySelector('#auth-mode');if(toggle)toggle.onclick=()=>{if(busy)return;mode=mode==='reset'?'login':'reset';error='';root.querySelector('form')?.reset();render()};
+ const back=root.querySelector('#back-login');if(back)back.onclick=()=>{recovery='';mode='login';error='';render()};
+ const save=root.querySelector('#save-recovery');if(save)save.onclick=()=>{const url=URL.createObjectURL(new Blob(['Northstar password recovery code (keep private)\n'+recovery+'\n'],{type:'text/plain'})),link=document.createElement('a');link.href=url;link.download='northstar-recovery-code.txt';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+}

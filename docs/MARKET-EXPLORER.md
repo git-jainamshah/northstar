@@ -16,4 +16,4 @@ Markets always shows a curated starter board: RY, SHOP, AAPL, MSFT; XIU, SPY, QQ
 
 Rendering patches existing DOM nodes instead of replacing the page on each poll. Focused forms and hovered/keyboard-inspected charts are preserved during background changes. Polling continues independently of typing, and automatic refresh does not introduce loading spinners or entrance animations.
 
-Pairing uses a Secure, HttpOnly, SameSite=Strict cookie for 30 days, renewed during authenticated visits. Existing valid short sessions upgrade automatically. New browsers, cleared cookies or 30 days of inactivity require one-time pairing. The private viewer key never enters public frontend assets or localStorage; unauthenticated requests still receive no feed.
+Personal email/password sign-in replaces manual key pairing. Sessions renew during authenticated visits; new browsers sign in normally. See AUTH.md for password recovery and session protection.

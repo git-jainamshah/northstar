@@ -81,3 +81,5 @@ The website now shows an explicit IBKR setup/locked state. Optional private Redi
 ### Options research
 
 The separate CAD $10,000 options simulation runs with `npm run pilot`, alongside the read-only IBKR connector and (when configured) private relay. Algorithm and Portfolio provide account selectors; Markets provides IBKR symbol search, option contract discovery, futures expiries and historical candlestick charts. See [MARKET-EXPLORER.md](docs/MARKET-EXPLORER.md). See [OPTIONS-RESEARCH.md](docs/OPTIONS-RESEARCH.md) for eligibility, accounting, prediction metrics and limitations. Live or delayed option bid/ask data plus live USD/CAD conversion are required; connecting Gateway alone does not activate paid market-data entitlements.
+
+Personal login, sign-out and recovery-code password reset: see [AUTH.md](docs/AUTH.md).

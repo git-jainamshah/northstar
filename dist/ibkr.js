@@ -2,9 +2,8 @@ import {esc,stamp,chartHTML} from './charts.js';
 const price=(v,c)=>Number.isFinite(v)?new Intl.NumberFormat('en-CA',{style:'currency',currency:c||'USD',maximumFractionDigits:4}).format(v):'—';
 const badge=(text)=>`<span class="badge">${esc(text)}</span>`;
 export function ibkrPanel(feed){
- const connected=feed?.connected,locked=feed?.status==='locked';
- const delayed=feed?.assets?.some(a=>a.mode==='delayed'||a.mode==='delayed-frozen');
- return `<div class="connection-strip"><span><i class="connection-dot ${connected?'on':''}"></i>IB Gateway <b>${connected?'Connected to market':'Cannot connect to API'}</b>${connected&&delayed?'<span class="feed-delay">Delayed quotes</span>':''}</span><details id="connection-settings"><summary>${locked?'Pair this browser':'Connection details'}</summary><div class="connection-popover"><h3>Private workspace</h3><p>${locked?'Pair this browser once using your private workspace key. It reconnects automatically and stays paired for 30 days after your last visit.':feed?.status==='setup-required'?'Hosted relay setup is required.':connected?'Automatically connected. This browser renews its private connection in the background. Quote availability depends on the exchange feed.':'Keep IB Gateway and npm run pilot running on your Mac.'}</p>${feed?.configured&&!feed?.enabled?`<form id="ibkr-unlock"><label for="ibkr-access-key">One-time pairing key</label><input id="ibkr-access-key" type="password" name="token" autocomplete="off" required maxlength="128"><button class="button" type="submit">Connect</button><p id="ibkr-auth-error" role="status"></p></form>`:''}${feed?.authenticated?'<button id="ibkr-lock" class="button">Disconnect this browser</button>':''}<p>${feed?.transport==='hosted'?'Private relay · 30-second snapshots':'Local Gateway connection'} · No real orders</p></div></details></div>`;
+ const connected=feed?.connected,delayed=feed?.assets?.some(a=>a.mode==='delayed'||a.mode==='delayed-frozen');
+ return `<div class="connection-strip"><span><i class="connection-dot ${connected?'on':''}"></i>IB Gateway <b>${connected?'Connected to API':'Cannot connect to API'}</b>${connected&&delayed?'<span class="feed-delay">Delayed quotes</span>':''}</span></div>`;
 }
 export function ibkrMarket(feed,category,region,selected){
   if(!feed?.enabled)return null;

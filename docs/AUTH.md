@@ -1,0 +1,11 @@
+# Personal Northstar sign-in
+
+The production app uses a single private email/password account. No public signup. Sign-in works on any device; Gateway remains connected through the existing Mac relay. The legacy workspace-key login endpoint returns 410 and is no longer displayed. The local loopback pilot remains a trusted local development surface and does not require hosted sign-in.
+
+Password hashes use Node scrypt (N=32768, r=8, p=1), random 128-bit salt and a 64-byte derived key. The credential record is stored in private Redis, never in source or frontend assets. Initial provisioning requires the existing server-side ingest bearer token and SET NX: it cannot overwrite an existing account. No additional provider or paid service is required.
+
+Sessions use random 256-bit opaque tokens, stored only as SHA-256-indexed Redis keys with 30-day expiry. Cookies are Secure, HttpOnly, SameSite=Strict and host-only. Each authenticated request checks the current user version; sign-out deletes the session, and password reset invalidates all older versions. Sign-in/reset are throttled by Vercel's client IP (10 attempts per 15 minutes). State-changing browser requests require an exact configured Origin. Storage failures fail closed. The IBKR feed, explorer and fictional paper ledger require personal authentication. Public crypto market data stays public.
+
+Forgot password uses an offline recovery code, not email delivery. The initial code is delivered privately to the owner, is hashed in Redis, and is single-use. A successful reset atomically rotates the password, account version and recovery code; the new code is shown/downloadable once. Old sessions and the old code stop working. Save the replacement. Recovery cannot be tested against the real account without changing its password: automated tests cover reset, code reuse, session revocation, bad credentials, throttling and cross-origin rejection.
+
+Existing shared-key cookies do not authorize access after this release. Sign in once with the configured personal credentials. No username, password, account hash or recovery code should be committed. The user record has no TTL; Redis backup/deletion policies still apply. A lost password and lost recovery code require an operator account recovery, not an insecure bypass.

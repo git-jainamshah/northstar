@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {CONFIG} from '../lib/config.js';import {initialState,runTick,report,eligibility,validateState} from '../lib/engine.js';import {parseBars,parseBook,loadMarket} from '../lib/market.js';import {updateLearning} from '../lib/learning.js';
+import {CONFIG} from '../lib/config.js';import {initialState,runTick,report,eligibility,validateState,confidenceGate} from '../lib/engine.js';import {parseBars,parseBook,loadMarket} from '../lib/market.js';import {updateLearning} from '../lib/learning.js';
 const now=Date.UTC(2026,8,23,12,10),hour=3600000;
 function bars(count=160){return Array.from({length:count},(_,i)=>({time:Math.floor(now/hour)*hour-(count-i)*hour,close:100*Math.pow(1.001,i-count+1),volume:10}))}
 function asset(id='BTC/CAD'){return {id,currency:'CAD',assetClass:'crypto',bid:99.9,ask:100,bidSize:10,askSize:10,observedAt:now,receivedAt:now,quality:'live',source:'test fixture',minQty:.00001,minCost:1,precision:8,spreadBps:10,bars:bars()}}
@@ -20,3 +20,21 @@ test('unfinished Kraken candle is excluded; gaps rejected',()=>{const raw=bars(1
 test('invalid, crossed, stale books and offline instruments rejected',()=>{const meta={ordermin:'.001',costmin:'1',lot_decimals:8,status:'online'},book={bids:[['100','10',now/1000]],asks:[['101','10',now/1000]]};assert.ok(parseBook({id:'TEST'},book,meta,now));assert.throws(()=>parseBook({}, {...book,asks:[['99','10',now/1000]]},meta,now));assert.throws(()=>parseBook({},book,meta,now+120001));assert.throws(()=>parseBook({},book,{...meta,status:'offline'},now))});
 test('provider outage is explicit and never replaced with fake data',async()=>{const r=await loadMarket({fetcher:async()=>{throw new Error('offline')}});assert.equal(r.assets.length,0);assert.equal(r.errors.length,2)});
 test('malformed persisted state is rejected, not reset',()=>{assert.throws(()=>validateState({...initialState(),cash:NaN}));assert.throws(()=>validateState({...initialState(),cash:-1}));assert.throws(()=>validateState(null))});
+test('confidence gate passes with no model or while warming up, regardless of score',()=>{
+  assert.equal(confidenceGate(null).ok,true);
+  assert.equal(confidenceGate({samples:50,latest:{upwardScore:0.01}}).ok,true);
+  assert.equal(confidenceGate({samples:CONFIG.shadowWarmupSamples,latest:{upwardScore:CONFIG.minShadowConfidence}}).ok,true);
+});
+test('confidence gate blocks once warmed up only when the score is below threshold',()=>{
+  const low=confidenceGate({samples:CONFIG.shadowWarmupSamples,latest:{upwardScore:CONFIG.minShadowConfidence-0.01}});
+  assert.equal(low.ok,false);assert.equal(low.score,CONFIG.minShadowConfidence-0.01);
+  assert.equal(confidenceGate({samples:CONFIG.shadowWarmupSamples,latest:{upwardScore:CONFIG.minShadowConfidence+0.01}}).ok,true);
+});
+test('a warmed-up but unconfident shadow model blocks an otherwise-eligible trend buy',()=>{
+  const a=asset();
+  const seeded={...initialState(now),models:{[a.id]:{version:'online-logistic-v1',weights:[-25,-25,-25,-25],trainedThrough:a.bars.at(-2).time,samples:135,scored:35,correct:0,brierSum:0,baselineBrierSum:0,gapResets:0,latest:null}}};
+  const s=runTick(seeded,market(a),now);
+  assert.equal(s.trades.length,0);
+  assert.equal(s.decisions[0].action,'HOLD');
+  assert.match(s.decisions[0].reason,/[Ss]hadow model confidence/);
+});

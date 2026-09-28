@@ -7,7 +7,7 @@ A Canada-first research workspace and **CAD $100 live-data paper-trading pilot**
 - Public Kraken BTC/CAD and ETH/CAD top-of-book and completed hourly candles.
 - Persistent simulated account, fee/slippage-aware fills, cash and BTC benchmarks, decision journal, equity history, heartbeat, and data-quality failures.
 - Explainable 12/48-hour trend baseline with 24-hour momentum filter.
-- Online logistic-regression learner in **shadow mode**. Predict → score → learn on chronological completed candles; no automatic promotion into execution.
+- Online logistic-regression learner. Predict → score → learn on chronological completed candles. Once it has 100+ samples, its confidence additionally gates new trend-rule entries (a low-confidence buy is skipped); it never controls exits, sizing, or asset selection.
 - Canada/U.S. stock, option, and futures coverage displayed honestly as unavailable/blocked. The older Discover page remains explicitly synthetic educational content.
 - Local minute polling; hosted hourly GitHub Actions pilot; Vercel dashboard/API ready.
 
@@ -50,7 +50,7 @@ The workflow runs at minute 17 each hour, plus an initial main push and manual d
 
 ## Learning and validation
 
-The learner uses prior 1-, 6-, and 24-hour returns with online regularized logistic updates. The first 100 observations warm up; subsequent chronological predictions are scored before updating weights. Scores include the initial recent historical window, not only forward-live observations. Initial history is limited to Kraken's recent 720 hourly records; this is far too little to establish broad strategy robustness. Brier score is compared with a 0.5 baseline; directional accuracy is not trading profit. The learner does not change risk, choose assets, or place simulated trades.
+The learner uses prior 1-, 6-, and 24-hour returns with online regularized logistic updates. The first 100 observations warm up; subsequent chronological predictions are scored before updating weights. Scores include the initial recent historical window, not only forward-live observations. Initial history is limited to Kraken's recent 720 hourly records; this is far too little to establish broad strategy robustness. Brier score is compared with a 0.5 baseline; directional accuracy is not trading profit. Once warmed up (100+ samples), a low confidence score can skip a trend-rule entry; the learner still never changes risk limits, chooses an asset, sizes a position, or overrides an exit.
 
 A candidate's future promotion would require longer licensed adjusted history, walk-forward validation across market regimes, untouched holdout periods, transaction-cost sensitivity, benchmark comparison, and a separate human-reviewed version. No claim of being the safest, best, or profitable algorithm is made.
 
@@ -58,7 +58,7 @@ A candidate's future promotion would require longer licensed adjusted history, w
 
 - `lib/market.js`: read-only public provider adapter and quality gates.
 - `lib/engine.js`: deterministic paper-only risk/execution/accounting.
-- `lib/learning.js`: incremental shadow model, isolated from execution.
+- `lib/learning.js`: incremental online learner; gates new entries once warmed up, isolated from exits/sizing.
 - `lib/store.js`: atomic local ledger and writer lock.
 - `scripts/github-tick.js`: GitHub state-branch persistence with optimistic SHA updates.
 - `api/market.js`: public quotes; short cache, original timestamps retained.
